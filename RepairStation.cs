@@ -44,8 +44,7 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
             if (!item) return false;
             var amountPlayerHas = Player.m_localPlayer.GetInventory().CountItems(item.m_itemData.m_shared.m_name);
             var costAmountHeld = CostAmount;
-            Player.m_localPlayer.Message(MessageHud.MessageType.Center,
-                $"Required Items Needed : {costAmountHeld - amountPlayerHas} {ItemName}");
+            Player.m_localPlayer.Message(MessageHud.MessageType.Center, $"Required Items Needed : {costAmountHeld - amountPlayerHas} {ItemName}");
             return false;
         }
 
@@ -75,8 +74,7 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
                 ? RepairStationPlugin.Cost.Value * repairCount
                 : RepairStationPlugin.Cost.Value;
             CheckRepairCost(true, costValue);
-            RepairStationPlugin.craftingStationClone.m_repairItemDoneEffects.Create(transform.position,
-                Quaternion.identity);
+            RepairStationPlugin.craftingStationClone.m_repairItemDoneEffects.Create(transform.position, Quaternion.identity);
         }
 
 

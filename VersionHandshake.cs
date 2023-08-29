@@ -1,5 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using HarmonyLib;
 
 namespace RepairStation
@@ -11,13 +15,13 @@ namespace RepairStation
         {
             // Register version check call
             RepairStationPlugin.RepairStationLogger.LogDebug("Registering version RPC handler");
-            peer.m_rpc.Register($"{RepairStationPlugin.ModName}_VersionCheck",
-                new Action<ZRpc, ZPackage>(RpcHandlers.RPC_RepairStation_Version));
+            peer.m_rpc.Register($"{RepairStationPlugin.ModName}_VersionCheck", new Action<ZRpc, ZPackage>(RpcHandlers.RPC_AllManagersModTemplate_Version));
 
             // Make calls to check versions
-            RepairStationPlugin.RepairStationLogger.LogInfo("Invoking version check");
+            RepairStationPlugin.RepairStationLogger.LogDebug("Invoking version check");
             ZPackage zpackage = new();
             zpackage.Write(RepairStationPlugin.ModVersion);
+            zpackage.Write(RpcHandlers.ComputeHashForMod().Replace("-", ""));
             peer.m_rpc.Invoke($"{RepairStationPlugin.ModName}_VersionCheck", zpackage);
         }
     }
@@ -29,15 +33,14 @@ namespace RepairStation
         {
             if (!__instance.IsServer() || RpcHandlers.ValidatedPeers.Contains(rpc)) return true;
             // Disconnect peer if they didn't send mod version at all
-            RepairStationPlugin.RepairStationLogger.LogWarning(
-                $"Peer ({rpc.m_socket.GetHostName()}) never sent version or couldn't due to previous disconnect, disconnecting");
+            RepairStationPlugin.RepairStationLogger.LogWarning($"Peer ({rpc.m_socket.GetHostName()}) never sent version or couldn't due to previous disconnect, disconnecting");
             rpc.Invoke("Error", 3);
             return false; // Prevent calling underlying method
         }
 
         private static void Postfix(ZNet __instance)
         {
-            ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.instance.GetServerPeerID(), "RequestAdminSync",
+            ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.instance.GetServerPeerID(), $"{RepairStationPlugin.ModName}RequestAdminSync",
                 new ZPackage());
         }
     }
@@ -73,20 +76,21 @@ namespace RepairStation
     {
         public static readonly List<ZRpc> ValidatedPeers = new();
 
-        public static void RPC_RepairStation_Version(ZRpc rpc, ZPackage pkg)
+        public static void RPC_AllManagersModTemplate_Version(ZRpc rpc, ZPackage pkg)
         {
             string? version = pkg.ReadString();
+            string? hash = pkg.ReadString();
+
+            var hashForAssembly = ComputeHashForMod().Replace("-", "");
             RepairStationPlugin.RepairStationLogger.LogInfo("Version check, local: " +
                                                             RepairStationPlugin.ModVersion +
                                                             ",  remote: " + version);
-            if (version != RepairStationPlugin.ModVersion)
+            if (hash != hashForAssembly || version != RepairStationPlugin.ModVersion)
             {
-                RepairStationPlugin.ConnectionError =
-                    $"{RepairStationPlugin.ModName} Installed: {RepairStationPlugin.ModVersion}\n Needed: {version}";
+                RepairStationPlugin.ConnectionError = $"{RepairStationPlugin.ModName} Installed: {RepairStationPlugin.ModVersion} {hashForAssembly}\n Needed: {version} {hash}";
                 if (!ZNet.instance.IsServer()) return;
                 // Different versions - force disconnect client from server
-                RepairStationPlugin.RepairStationLogger.LogWarning(
-                    $"Peer ({rpc.m_socket.GetHostName()}) has incompatible version, disconnecting");
+                RepairStationPlugin.RepairStationLogger.LogWarning($"Peer ({rpc.m_socket.GetHostName()}) has incompatible version, disconnecting...");
                 rpc.Invoke("Error", 3);
             }
             else
@@ -94,7 +98,8 @@ namespace RepairStation
                 if (!ZNet.instance.IsServer())
                 {
                     // Enable mod on client if versions match
-                    RepairStationPlugin.RepairStationLogger.LogInfo("Received same version from server!");
+                    RepairStationPlugin.RepairStationLogger.LogInfo(
+                        "Received same version from server!");
                 }
                 else
                 {
@@ -104,6 +109,21 @@ namespace RepairStation
                     ValidatedPeers.Add(rpc);
                 }
             }
+        }
+
+        public static string ComputeHashForMod()
+        {
+            using SHA256 sha256Hash = SHA256.Create();
+            // ComputeHash - returns byte array  
+            byte[] bytes = sha256Hash.ComputeHash(File.ReadAllBytes(Assembly.GetExecutingAssembly().Location));
+            // Convert byte array to a string   
+            StringBuilder builder = new();
+            foreach (byte b in bytes)
+            {
+                builder.Append(b.ToString("X2"));
+            }
+
+            return builder.ToString();
         }
     }
 }

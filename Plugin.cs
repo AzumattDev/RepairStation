@@ -18,7 +18,7 @@ namespace RepairStation
     public class RepairStationPlugin : BaseUnityPlugin
     {
         internal const string ModName = "RepairStation";
-        internal const string ModVersion = "1.0.2";
+        internal const string ModVersion = "1.0.3";
         internal const string Author = "Azumatt";
         private const string ModGUID = Author + "." + ModName;
         private static string ConfigFileName = ModGUID + ".cfg";
@@ -64,7 +64,7 @@ namespace RepairStation
             repairStation.RequiredItems.Add("Iron", 30, true);
             repairStation.RequiredItems.Add("Wood", 10, true);
             repairStation.RequiredItems.Add("SurtlingCore", 3, true);
-            repairStation.Category.Add(BuildPieceCategory.Misc);
+            repairStation.Category.Set(BuildPieceCategory.Misc);
             repairStation.Crafting.Set(CraftingTable.Forge);
 
             repairStation.Prefab.AddComponent<RepairStation>();
@@ -169,10 +169,10 @@ namespace RepairStation
 
         private class ConfigurationManagerAttributes
         {
-            [UsedImplicitly] public int? Order;
-            [UsedImplicitly] public bool? Browsable;
-            [UsedImplicitly] public string? Category;
-            [UsedImplicitly] public Action<ConfigEntryBase>? CustomDrawer;
+            [UsedImplicitly] public int? Order = null!;
+            [UsedImplicitly] public bool? Browsable = null!;
+            [UsedImplicitly] public string? Category = null!;
+            [UsedImplicitly] public Action<ConfigEntryBase>? CustomDrawer = null!;
         }
 
         #endregion
