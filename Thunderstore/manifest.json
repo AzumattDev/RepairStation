@@ -1,9 +1,9 @@
 {
   "name": "RepairStation",
-  "version_number": "1.0.3",
+  "version_number": "1.0.4",
   "website_url": "https://discord.gg/pdHgy6Bsng",
   "description": "Simple station to repair your shit. All at once or one at a time. Make it free, or cost {x} amount of {x} item. Just interact with this shit.",
   "dependencies": [
-    "denikson-BepInExPack_Valheim-5.4.2105"
+    "denikson-BepInExPack_Valheim-5.4.2200"
   ]
 }

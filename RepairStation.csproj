@@ -112,6 +112,9 @@
         <Reference Include="UnityEngine.UI">
             <HintPath>$(CorlibPath)\UnityEngine.UI.dll</HintPath>
         </Reference>
+        <Reference Include="Unity.TextMeshPro">
+            <HintPath>$(GamePath)\valheim_Data\Managed\Unity.TextMeshPro.dll</HintPath>
+        </Reference>
         <Reference Include="WindowsBase"/>
     </ItemGroup>
     <ItemGroup>
@@ -129,7 +132,7 @@
     <ItemGroup>
         <Content Include=".gitignore"/>
         <Content Include="environment.props"/>
-        <Content Include="Thunderstore\CHANGELOG.md" />
+        <Content Include="Thunderstore\CHANGELOG.md"/>
         <Content Include="Thunderstore\RepairStation_v1.0.0.zip"/>
         <Content Include="UpdateManifest.ps1"/>
         <EmbeddedResource Include="assets\repairstation"/>

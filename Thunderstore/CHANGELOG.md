@@ -1,5 +1,7 @@
 | `Version` | `Update Notes`                                                                                                                                                                        |
 |-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1.0.4     | - Update for Valheim 0.217.22                                                                                                                                                         |
+| 1.0.3     | - Update                                                                                                                                                                              |
 | 1.0.2     | - Update for Hildir's Request                                                                                                                                                         |
 | 1.0.1     | - Added configuration option to prevent repairing items at crafting stations. If on, Players will not be able to repair items at crafting stations. They must use the Repair Station. |
 | 1.0.0     | - Initial Release                                                                                                                                                                     |
