@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using BepInEx;
+using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
@@ -15,10 +16,11 @@ using UnityEngine;
 namespace RepairStation
 {
     [BepInPlugin(ModGUID, ModName, ModVersion)]
+    [BepInDependency("org.bepinex.plugins.blacksmithing", BepInDependency.DependencyFlags.SoftDependency)]
     public class RepairStationPlugin : BaseUnityPlugin
     {
         internal const string ModName = "RepairStation";
-        internal const string ModVersion = "1.0.4";
+        internal const string ModVersion = "1.1.0";
         internal const string Author = "Azumatt";
         private const string ModGUID = Author + "." + ModName;
         private static string ConfigFileName = ModGUID + ".cfg";
@@ -26,14 +28,13 @@ namespace RepairStation
         internal static string ConnectionError = "";
         private readonly Harmony _harmony = new(ModGUID);
 
-        public static readonly ManualLogSource RepairStationLogger =
-            BepInEx.Logging.Logger.CreateLogSource(ModName);
+        public static readonly ManualLogSource RepairStationLogger = BepInEx.Logging.Logger.CreateLogSource(ModName);
 
-        private static readonly ConfigSync ConfigSync = new(ModGUID)
-            { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
+        private static readonly ConfigSync ConfigSync = new(ModGUID) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
 
         internal static CraftingStation craftingStationClone = null!;
         internal static RepairStationPlugin context = null!;
+        internal static bool BlacksmithingInstalled;
 
         public enum Toggle
         {
@@ -44,12 +45,10 @@ namespace RepairStation
         public void Awake()
         {
             context = this;
-            _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On,
-                "If on, the configuration is locked and can be changed by server admins only.");
+            _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
             _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
             
-            PreventCraftingStationRepair = config("2 - Repair Station", "Prevent Crafting Station Repair", Toggle.Off,
-                "If on, Players will not be able to repair items at crafting stations. They must use the Repair Station.");
+            PreventCraftingStationRepair = config("2 - Repair Station", "Prevent Crafting Station Repair", Toggle.Off, "If on, Players will not be able to repair items at crafting stations. They must use the Repair Station.");
             
             RepairAllItems = config("2 - Repair Station Cost", "Repair All Items", Toggle.Off, "If set to true, the RepairItems() method will be called in a loop until all repairable items are repaired. If set to false, the RepairItems() method will be called once.");
             UseItemMultiplier = config("2 - Repair Station Cost", "Use Item Multiplier", Toggle.On, "If set to true, the Cost Item Amount times the amount of items needing repair will be used to calculate the cost of repairing an item. If set to false, the Cost Item Amount will be used to calculate the cost of repairing an item.");
@@ -69,6 +68,15 @@ namespace RepairStation
 
             repairStation.Prefab.AddComponent<RepairStation>();
             MaterialReplacer.RegisterGameObjectForMatSwap(repairStation.Prefab);
+
+            if (Chainloader.PluginInfos.TryGetValue("org.bepinex.plugins.blacksmithing", out var Blacksmithing))
+            {
+                if (Blacksmithing != null)
+                {
+                    BlacksmithingInstalled = true;
+                }
+            }
+            
             Assembly assembly = Assembly.GetExecutingAssembly();
             _harmony.PatchAll(assembly);
             SetupWatcher();

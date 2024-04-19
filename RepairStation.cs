@@ -124,10 +124,13 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
             if (CanRepairItems(tempWornItem))
             {
                 tempWornItem.m_durability = tempWornItem.GetMaxDurability();
+                if (RepairStationPlugin.BlacksmithingInstalled)
+                {
+                    SkillManager.SkillExtensions.GetSkillFactor(Player.m_localPlayer, "Blacksmithing");
+                }
                 if (RepairStationPlugin.craftingStationClone != null)
                     RepairStationPlugin.craftingStationClone.m_repairItemDoneEffects.Create(transform.position, Quaternion.identity);
-                Player.m_localPlayer.Message(MessageHud.MessageType.Center,
-                    Localization.instance.Localize("$msg_repaired", tempWornItem.m_shared.m_name));
+                Player.m_localPlayer.Message(MessageHud.MessageType.Center, Localization.instance.Localize("$msg_repaired", tempWornItem.m_shared.m_name));
                 return;
             }
         }
@@ -148,10 +151,8 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
             if (shouldRemove)
             {
                 RepairStationPlugin.RepairStationLogger.LogError($"Removing Items {costValue}");
-                Player.m_localPlayer.GetInventory().RemoveItem(item.m_itemData.m_shared.m_name,
-                    costValue);
-                Player.m_localPlayer.ShowRemovedMessage(item.m_itemData,
-                    costValue);
+                Player.m_localPlayer.GetInventory().RemoveItem(item.m_itemData.m_shared.m_name, costValue);
+                Player.m_localPlayer.ShowRemovedMessage(item.m_itemData, costValue);
             }
 
             return true;
