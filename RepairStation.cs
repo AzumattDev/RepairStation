@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
+using HarmonyLib;
+using SkillManager;
 using UnityEngine;
 using Object = System.Object;
 
@@ -123,11 +126,22 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
         {
             if (CanRepairItems(tempWornItem))
             {
-                tempWornItem.m_durability = tempWornItem.GetMaxDurability();
                 if (RepairStationPlugin.BlacksmithingInstalled)
                 {
-                    SkillManager.SkillExtensions.GetSkillFactor(Player.m_localPlayer, "Blacksmithing");
+                    int minutesToSet = 0;
+                    float skillFactor = Player.m_localPlayer.GetSkillFactor("Blacksmithing");
+                    if (skillFactor >= 0.5f)
+                        minutesToSet = (int)(10 * skillFactor);
+                    tempWornItem.m_customData["RepairStation"] = DateTime.Now.AddMinutes(minutesToSet).ToString(CultureInfo.InvariantCulture);
+                    tempWornItem.m_durability = tempWornItem.GetMaxDurability();
+                    // Cache the m_useDurability into custom data
+                    tempWornItem.m_customData["RepairStationUseDurability"] = tempWornItem.m_shared.m_useDurability.ToString();
                 }
+                else
+                {
+                    tempWornItem.m_durability = tempWornItem.GetMaxDurability();
+                }
+
                 if (RepairStationPlugin.craftingStationClone != null)
                     RepairStationPlugin.craftingStationClone.m_repairItemDoneEffects.Create(transform.position, Quaternion.identity);
                 Player.m_localPlayer.Message(MessageHud.MessageType.Center, Localization.instance.Localize("$msg_repaired", tempWornItem.m_shared.m_name));
@@ -167,8 +181,31 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
         {
             if (!itemData.m_shared.m_useDurability || !(itemData.m_durability < (double)itemData.GetMaxDurability())) continue;
             if (worn.Contains(itemData)) continue;
-            if(CanRepairItems(itemData))
+            if (CanRepairItems(itemData))
                 worn.Add(itemData);
+        }
+    }
+}
+
+[HarmonyPatch(typeof(ItemDrop), nameof(ItemDrop.ItemData.GetMaxDurability), MethodType.Normal)]
+static class ItemDropItemDataGetMaxDurabilityPatch
+{
+    static void Prefix(ItemDrop __instance)
+    {
+        if (__instance.m_itemData?.m_shared == null) return;
+        if (!__instance.m_itemData.m_customData.TryGetValue("RepairStation", out string? timeValue)) return;
+        if (!DateTime.TryParse(timeValue, out DateTime repairTime)) return;
+        if (DateTime.Now > repairTime)
+        {
+            __instance.m_itemData.m_customData.Remove("RepairStation");
+            // Set m_useDurability back to what it was
+            if (!__instance.m_itemData.m_customData.TryGetValue("RepairStationUseDurability", out string? useDurabilityValue)) return;
+            __instance.m_itemData.m_shared.m_useDurability = bool.Parse(useDurabilityValue);
+            __instance.m_itemData.m_customData.Remove("RepairStationUseDurability");
+        }
+        else
+        {
+            __instance.m_itemData.m_shared.m_useDurability = false;
         }
     }
 }
