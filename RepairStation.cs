@@ -18,17 +18,13 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
     public string GetHoverText()
     {
         GetWornItemsHover(m_tempWornItemsHover);
-        CostAmount = RepairStationPlugin.UseItemMultiplier.Value == RepairStationPlugin.Toggle.On &&
-                     RepairStationPlugin.RepairAllItems.Value == RepairStationPlugin.Toggle.On
+        CostAmount = RepairStationPlugin.UseItemMultiplier.Value == RepairStationPlugin.Toggle.On && RepairStationPlugin.RepairAllItems.Value == RepairStationPlugin.Toggle.On
             ? RepairStationPlugin.Cost.Value * m_tempWornItemsHover.Count
             : RepairStationPlugin.Cost.Value;
         StringBuilder stringBuilder = new();
-        stringBuilder.Append(Localization.instance.Localize(
-            $"{GetHoverName()}{Environment.NewLine}Press [<color=yellow><b>$KEY_Use</b></color>] to repair everything in your inventory" +
-            (RepairStationPlugin.ShouldCost.Value == RepairStationPlugin.Toggle.On
-                ? $" (Uses {CostAmount} {RepairStationPlugin.RepairItem.Value})"
-                : "")
-        ));
+        stringBuilder.Append(Localization.instance.Localize($"{GetHoverName()}{Environment.NewLine}Press [<color=yellow><b>$KEY_Use</b></color>] to repair everything in your inventory{(RepairStationPlugin.ShouldCost.Value == RepairStationPlugin.Toggle.On
+            ? $" (Uses {CostAmount} {RepairStationPlugin.RepairItem.Value})" 
+            : "")}"));
 
         return stringBuilder.ToString();
     }
@@ -129,7 +125,7 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
                 if (RepairStationPlugin.BlacksmithingInstalled)
                 {
                     int minutesToSet = 0;
-                    float skillFactor = Player.m_localPlayer.GetSkillFactor("Blacksmithing");
+                    float skillFactor = Player.m_localPlayer.GetSkillFactor(Skill.fromName("Blacksmithing"));
                     if (skillFactor >= 0.5f)
                         minutesToSet = (int)(10 * skillFactor);
                     tempWornItem.m_customData["RepairStation"] = DateTime.Now.AddMinutes(minutesToSet).ToString(CultureInfo.InvariantCulture);
@@ -187,25 +183,25 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
     }
 }
 
-[HarmonyPatch(typeof(ItemDrop), nameof(ItemDrop.ItemData.GetMaxDurability), MethodType.Normal)]
+[HarmonyPatch(typeof(ItemDrop.ItemData), nameof(ItemDrop.ItemData.GetMaxDurability), [])]
 static class ItemDropItemDataGetMaxDurabilityPatch
 {
-    static void Prefix(ItemDrop __instance)
+    static void Prefix(ItemDrop.ItemData __instance)
     {
-        if (__instance.m_itemData?.m_shared == null) return;
-        if (!__instance.m_itemData.m_customData.TryGetValue("RepairStation", out string? timeValue)) return;
+        if (__instance?.m_shared == null) return;
+        if (!__instance.m_customData.TryGetValue("RepairStation", out string? timeValue)) return;
         if (!DateTime.TryParse(timeValue, out DateTime repairTime)) return;
         if (DateTime.Now > repairTime)
         {
-            __instance.m_itemData.m_customData.Remove("RepairStation");
+            __instance.m_customData.Remove("RepairStation");
             // Set m_useDurability back to what it was
-            if (!__instance.m_itemData.m_customData.TryGetValue("RepairStationUseDurability", out string? useDurabilityValue)) return;
-            __instance.m_itemData.m_shared.m_useDurability = bool.Parse(useDurabilityValue);
-            __instance.m_itemData.m_customData.Remove("RepairStationUseDurability");
+            if (!__instance.m_customData.TryGetValue("RepairStationUseDurability", out string? useDurabilityValue)) return;
+            __instance.m_shared.m_useDurability = bool.Parse(useDurabilityValue);
+            __instance.m_customData.Remove("RepairStationUseDurability");
         }
         else
         {
-            __instance.m_itemData.m_shared.m_useDurability = false;
+            __instance.m_shared.m_useDurability = false;
         }
     }
 }
