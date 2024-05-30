@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
 using HarmonyLib;
 using SkillManager;
@@ -23,7 +24,7 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
             : RepairStationPlugin.Cost.Value;
         StringBuilder stringBuilder = new();
         stringBuilder.Append(Localization.instance.Localize($"{GetHoverName()}{Environment.NewLine}Press [<color=yellow><b>$KEY_Use</b></color>] to repair everything in your inventory{(RepairStationPlugin.ShouldCost.Value == RepairStationPlugin.Toggle.On
-            ? $" (Uses {CostAmount} {RepairStationPlugin.RepairItem.Value})" 
+            ? $" (Uses {CostAmount} {RepairStationPlugin.RepairItem.Value})"
             : "")}"));
 
         return stringBuilder.ToString();
@@ -129,9 +130,11 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
                     if (skillFactor >= 0.5f)
                         minutesToSet = (int)(10 * skillFactor);
                     tempWornItem.m_customData["RepairStation"] = DateTime.Now.AddMinutes(minutesToSet).ToString(CultureInfo.InvariantCulture);
+                    RepairStationPlugin.RepairStationLogger.LogDebug($"(Can Repair Items) Setting Time {tempWornItem.m_shared.m_name} {DateTime.Now.AddMinutes(minutesToSet)}");
                     tempWornItem.m_durability = tempWornItem.GetMaxDurability();
                     // Cache the m_useDurability into custom data
                     tempWornItem.m_customData["RepairStationUseDurability"] = tempWornItem.m_shared.m_useDurability.ToString();
+                    RepairStationPlugin.RepairStationLogger.LogDebug($"(Can Repair Items) Storing UseDurability {tempWornItem.m_shared.m_name} {tempWornItem.m_shared.m_useDurability}");
                 }
                 else
                 {
@@ -183,25 +186,108 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
     }
 }
 
-[HarmonyPatch(typeof(ItemDrop.ItemData), nameof(ItemDrop.ItemData.GetMaxDurability), [])]
-static class ItemDropItemDataGetMaxDurabilityPatch
+[HarmonyPatch]
+static class PlayerItemGetPatch
 {
-    static void Prefix(ItemDrop.ItemData __instance)
+    static IEnumerable<MethodBase> TargetMethods()
     {
-        if (__instance?.m_shared == null) return;
-        if (!__instance.m_customData.TryGetValue("RepairStation", out string? timeValue)) return;
-        if (!DateTime.TryParse(timeValue, out DateTime repairTime)) return;
-        if (DateTime.Now > repairTime)
+        yield return AccessTools.Method(typeof(Player), nameof(Player.GetRightItem));
+        yield return AccessTools.Method(typeof(Player), nameof(Player.GetLeftItem));
+    }
+
+    [HarmonyPostfix]
+    static void CheckItem(Player __instance)
+    {
+        if (Player.m_localPlayer == null) return;
+        if (__instance == Player.m_localPlayer)
         {
-            __instance.m_customData.Remove("RepairStation");
-            // Set m_useDurability back to what it was
-            if (!__instance.m_customData.TryGetValue("RepairStationUseDurability", out string? useDurabilityValue)) return;
-            __instance.m_shared.m_useDurability = bool.Parse(useDurabilityValue);
-            __instance.m_customData.Remove("RepairStationUseDurability");
-        }
-        else
-        {
-            __instance.m_shared.m_useDurability = false;
+            // Handle for the right hand and left hand
+            if (__instance.m_rightItem is { } rightItem)
+            {
+                if (rightItem?.m_shared == null) return;
+                if (!rightItem.m_customData.TryGetValue("RepairStation", out string? timeValue)) return;
+                if (!DateTime.TryParse(timeValue, out DateTime repairTime)) return;
+                if (DateTime.Now > repairTime)
+                {
+                    RepairStationPlugin.RepairStationLogger.LogDebug($"(GetRightItem) Removing Time {rightItem.m_shared.m_name}");
+                    rightItem.m_customData.Remove("RepairStation");
+                    // Set m_useDurability back to what it was
+                    if (!rightItem.m_customData.TryGetValue("RepairStationUseDurability", out string? useDurabilityValue)) return;
+                    RepairStationPlugin.RepairStationLogger.LogDebug($"(GetRightItem) Setting UseDurability {rightItem.m_shared.m_name} {bool.Parse(useDurabilityValue)}");
+                    rightItem.m_shared.m_useDurability = bool.Parse(useDurabilityValue);
+                    rightItem.m_customData.Remove("RepairStationUseDurability");
+                }
+                else
+                {
+                    rightItem.m_shared.m_useDurability = false;
+                }
+            }
+
+            if (__instance.m_leftItem is { } leftItem)
+            {
+                if (leftItem?.m_shared == null) return;
+                if (!leftItem.m_customData.TryGetValue("RepairStation", out string? timeValue)) return;
+                if (!DateTime.TryParse(timeValue, out DateTime repairTime)) return;
+                if (DateTime.Now > repairTime)
+                {
+                    RepairStationPlugin.RepairStationLogger.LogDebug($"(GetLeftItem) Removing Time {leftItem.m_shared.m_name}");
+                    leftItem.m_customData.Remove("RepairStation");
+                    // Set m_useDurability back to what it was
+                    if (!leftItem.m_customData.TryGetValue("RepairStationUseDurability", out string? useDurabilityValue)) return;
+                    RepairStationPlugin.RepairStationLogger.LogDebug($"(GetLeftItem) Setting UseDurability {leftItem.m_shared.m_name} {bool.Parse(useDurabilityValue)}");
+                    leftItem.m_shared.m_useDurability = bool.Parse(useDurabilityValue);
+                    leftItem.m_customData.Remove("RepairStationUseDurability");
+                }
+                else
+                {
+                    leftItem.m_shared.m_useDurability = false;
+                }
+            }
         }
     }
 }
+
+[HarmonyPatch(typeof(Humanoid), nameof(Humanoid.IsItemEquiped))]
+static class ItemDropItemDataIsItemEquipedPatch
+{
+    static void Prefix(Humanoid __instance, ItemDrop.ItemData item)
+    {
+        if (!__instance.IsPlayer() || __instance != Player.m_localPlayer) return;
+        if (item?.m_shared == null) return;
+        if (!item.m_customData.TryGetValue("RepairStation", out string? timeValue)) return;
+        if (!DateTime.TryParse(timeValue, out DateTime repairTime)) return;
+        if (DateTime.Now > repairTime)
+        {
+            RepairStationPlugin.RepairStationLogger.LogDebug($"(IsItemEquiped) Removing Time {item.m_shared.m_name}");
+            item.m_customData.Remove("RepairStation");
+            // Set m_useDurability back to what it was
+            if (!item.m_customData.TryGetValue("RepairStationUseDurability", out string? useDurabilityValue)) return;
+            RepairStationPlugin.RepairStationLogger.LogDebug($"(IsItemEquiped) Setting UseDurability {item.m_shared.m_name} {bool.Parse(useDurabilityValue)}");
+            item.m_shared.m_useDurability = bool.Parse(useDurabilityValue);
+            item.m_customData.Remove("RepairStationUseDurability");
+        }
+        else
+        {
+            item.m_shared.m_useDurability = false;
+        }
+    }
+}
+
+#if DEBUG
+[HarmonyPatch(typeof(ItemDrop.ItemData), nameof(ItemDrop.ItemData.GetTooltip), typeof(ItemDrop.ItemData), typeof(int), typeof(bool), typeof(float))]
+static class ItemDropItemDataGetTooltipPatch
+{
+    static void Postfix(ItemDrop.ItemData item, ref string __result)
+    {
+        if (item.m_dropPrefab is { } prefab)
+        {
+            StringBuilder sb = new("\n");
+            // Add the Repair Time compared to the current time
+            var value = item.m_customData.TryGetValue("RepairStation", out string? timeValue) ? timeValue : "N/A";
+            // Tell me how many minutes left until Datetime.Now is greater than the repair time
+            sb.Append("Repair Time: ").Append(DateTime.TryParse(value, out DateTime repairTime) ? (repairTime - DateTime.Now).ToString() : "N/A").Append("\n");
+            __result += sb.ToString();
+        }
+    }
+}
+#endif
