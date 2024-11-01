@@ -19,13 +19,9 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
     public string GetHoverText()
     {
         GetWornItemsHover(m_tempWornItemsHover);
-        CostAmount = RepairStationPlugin.UseItemMultiplier.Value == RepairStationPlugin.Toggle.On && RepairStationPlugin.RepairAllItems.Value == RepairStationPlugin.Toggle.On
-            ? RepairStationPlugin.Cost.Value * m_tempWornItemsHover.Count
-            : RepairStationPlugin.Cost.Value;
+        CostAmount = RepairStationPlugin.UseItemMultiplier.Value == RepairStationPlugin.Toggle.On && RepairStationPlugin.RepairAllItems.Value == RepairStationPlugin.Toggle.On ? RepairStationPlugin.Cost.Value * m_tempWornItemsHover.Count : RepairStationPlugin.Cost.Value;
         StringBuilder stringBuilder = new();
-        stringBuilder.Append(Localization.instance.Localize($"{GetHoverName()}{Environment.NewLine}Press [<color=yellow><b>$KEY_Use</b></color>] to repair everything in your inventory{(RepairStationPlugin.ShouldCost.Value == RepairStationPlugin.Toggle.On
-            ? $" (Uses {CostAmount} {RepairStationPlugin.RepairItem.Value})"
-            : "")}"));
+        stringBuilder.Append(Localization.instance.Localize($"{GetHoverName()}{Environment.NewLine}Press [<color=yellow><b>$KEY_Use</b></color>] to repair everything in your inventory{(RepairStationPlugin.ShouldCost.Value == RepairStationPlugin.Toggle.On ? $" (Uses {CostAmount} {RepairStationPlugin.RepairItem.Value})" : "")}"));
 
         return stringBuilder.ToString();
     }
@@ -39,8 +35,7 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
             return false;
         if (!CheckRepairCost(costValue: CostAmount))
         {
-            ItemDrop? item = ZNetScene.instance.GetPrefab(RepairStationPlugin.RepairItem.Value)
-                .GetComponent<ItemDrop>();
+            ItemDrop? item = ZNetScene.instance.GetPrefab(RepairStationPlugin.RepairItem.Value).GetComponent<ItemDrop>();
             if (!item) return false;
             var amountPlayerHas = Player.m_localPlayer.GetInventory().CountItems(item.m_itemData.m_shared.m_name);
             var costAmountHeld = CostAmount;
@@ -70,9 +65,7 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
             }
 
             if (repairCount <= 0) return true;
-            var costValue = RepairStationPlugin.UseItemMultiplier.Value == RepairStationPlugin.Toggle.On
-                ? RepairStationPlugin.Cost.Value * repairCount
-                : RepairStationPlugin.Cost.Value;
+            var costValue = RepairStationPlugin.UseItemMultiplier.Value == RepairStationPlugin.Toggle.On ? RepairStationPlugin.Cost.Value * repairCount : RepairStationPlugin.Cost.Value;
             CheckRepairCost(true, costValue);
             RepairStationPlugin.craftingStationClone.m_repairItemDoneEffects.Create(transform.position, Quaternion.identity);
         }
@@ -85,8 +78,7 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
 
     public bool HaveRepairableItems()
     {
-        if (Player.m_localPlayer == null)
-            return false;
+        if (Player.m_localPlayer == null) return false;
         InventoryGui.instance.m_tempWornItems.Clear();
         Player.m_localPlayer.GetInventory().GetWornItems(InventoryGui.instance.m_tempWornItems);
         foreach (ItemDrop.ItemData tempWornItem in InventoryGui.instance.m_tempWornItems)
@@ -154,12 +146,10 @@ public class RepairStation : MonoBehaviour, Hoverable, Interactable
     internal static bool CheckRepairCost(bool shouldRemove = false, int costValue = 1)
     {
         if (RepairStationPlugin.ShouldCost.Value == RepairStationPlugin.Toggle.Off) return true;
-        ItemDrop? item = ZNetScene.instance.GetPrefab(RepairStationPlugin.RepairItem.Value)
-            .GetComponent<ItemDrop>();
+        ItemDrop? item = ZNetScene.instance.GetPrefab(RepairStationPlugin.RepairItem.Value).GetComponent<ItemDrop>();
         if (!item) return false;
         ItemName = Localization.instance.Localize(item.m_itemData.m_shared.m_name);
-        if (Player.m_localPlayer.GetInventory().CountItems(item.m_itemData.m_shared.m_name) >=
-            costValue)
+        if (Player.m_localPlayer.GetInventory().CountItems(item.m_itemData.m_shared.m_name) >= costValue)
         {
             if (shouldRemove)
             {
